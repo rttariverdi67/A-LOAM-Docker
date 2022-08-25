@@ -5,7 +5,7 @@ This repo contains Docker image for [A-LOAM](https://github.com/HKUST-Aerial-Rob
 At first you need to build Docker image.
 ```
 cd <path-to-this-repo>
-docker build a-loam:latest .
+docker build -t a-loam:latest .
 ```
 Then you can run Docker image with our script:
 ```
