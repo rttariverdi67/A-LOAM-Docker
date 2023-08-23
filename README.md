@@ -40,3 +40,58 @@ rosrun pcl_ros bag_to_pcd <input_file.bag> <topic> <output_directory>
 ### Getting trajectory
 Per frame trjaectory is available in `/aft_mapped_to_init` topic.
 
+# LOAM preprocessing 
+
+Using ROS-bridge for transfering ros2 bags into ros1 bags: 
+for thisyou need to have ROS1 and ROS2 installed on your local or a docker with ros bridg installed. 
+To install ros bridg: 
+```shell
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
+sudo apt update
+# if you have diffrent version of ros2 repace "foxy" with it
+sudo apt install ros-foxy-ros1-bridge 
+```
+####Transfer .db3 to .bag
+**Steps:** 
+1. Open 4 shells (A, B, C, and D). 
+2. In shell **A**:
+```shell
+# Source ROS 1 first:
+source /opt/ros/noetic/setup.bash 
+# Source ROS 2 next:
+source /opt/ros/foxy/setup.bash
+# export ros master 
+export ROS_MASTER_URI=http://localhost:11311
+# Run ros-bridg
+ros2 run ros1_bridge dynamic_bridge
+``` 
+3. In shell **B**: 
+```shell
+# Source ROS 1:
+source /opt/ros/noetic/setup.bash
+# Run ros core
+roscore
+```
+4. In shell **C**: 
+```shell
+# Source ROS 1:
+source /opt/ros/noetic/setup.bash
+# navigat to the directory you want the bag to be stored in
+cd <path>
+# record all topics with 
+rosbag record -a 
+# or record a certain topic or topics with 
+rosbag record <topic1_name> <topic2_name> <topic3_name>
+```
+5. In shell **D**: 
+```shell
+# Source ROS 2:
+source /opt/ros/foxy/setup.bash
+# Run the ros2 bag .db3
+ros2 bag play <name_of_the_ros2_bag.db3>
+```
+6. when the bag is finished playing stop the recording the the ros1 bag .bag should be in the dirctory you record in. 
+
+
+
