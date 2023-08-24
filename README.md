@@ -48,7 +48,7 @@ sudo apt update
 # if you have diffrent version of ros2 repace "foxy" with it
 sudo apt install ros-foxy-ros1-bridge 
 ```
-####Transfer .db3 to .bag
+#### Transfer .db3 to .bag
 **Steps:** 
 1. Open 4 shells (A, B, C, and D). 
 2. In shell **A**:
