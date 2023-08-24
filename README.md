@@ -31,12 +31,8 @@ rosbag record /aft_mapped_to_init /laser_cloud_map /velodyne_cloud_registered
 ```
 *NOTE:* You can record any other topics, but we will use only these ones.
 ### Getting point clouds
-Point clouds will be contained in the `/aft_mapped_to_init` and `/laser_cloud_map` topics after recording process. Please, use the `/aft_mapped_to_init` topic for getting per frame point clouds and the last message from `/laser_cloud_map` to get the whole map of the scene.
+**Use the provided [notebook](bag2pcd.ipynb)**
 
-You can use this command to save point clouds:
-```
-rosrun pcl_ros bag_to_pcd <input_file.bag> <topic> <output_directory>
-```
 ### Getting trajectory
 Per frame trjaectory is available in `/aft_mapped_to_init` topic.
 
