@@ -71,12 +71,20 @@ def run_FGraph(x):
 def rectify_map(map_pcd):
     cl, ind = map_pcd.remove_statistical_outlier(nb_neighbors=5, std_ratio=0.001)
     map_pcd = map_pcd.select_by_index(ind)
+    
+    map_pcd.estimate_normals(o3d.geometry.KDTreeSearchParamHybrid(radius=1.5, max_nn=30))
+    normals = np.asarray(map_pcd.normals)
+    colors = 0.5 * (normals + 1)  # Normalize and shift the range to [0, 1]
+    map_pcd.colors = o3d.utility.Vector3dVector(colors)
+    idxs = (colors[:, 2] < 0.3)
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(np.asarray(map_pcd.points)[idxs])
 
     # Rotate map to 2D projection
     pca = PCA(n_components=3)
-    pca.fit(np.asarray(map_pcd.points))
+    pca.fit(np.asarray(pcd.points))
     dT = run_FGraph(pca.components_[2])
-    map_rect = copy.deepcopy(map_pcd).transform(dT)
+    map_rect = copy.deepcopy(pcd).transform(dT)
     
     return dT, map_rect
     
@@ -90,6 +98,7 @@ def project_map(args):
     #rectify map
     print('rectify map ...')
     dT, map_pcd = rectify_map(map_pcd)
+    o3d.io.write_point_cloud(os.path.join(Path(args.save_path), "map_rect.pcd"), map_pcd)
     
     #paint/initialize points colors
     map_pcd.paint_uniform_color([0,0,0])
@@ -125,7 +134,7 @@ def project_map(args):
     np.save(Path(args.save_path) / 'dT.npy', dT)
 
     print('saving map.png ...')
-    plt.imsave(Path(args.save_path) / "map.png", image)
+    # plt.imsave(Path(args.save_path) / "map.png", image)
 
 if __name__ == '__main__':
     project_map(args)
