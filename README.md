@@ -90,4 +90,13 @@ ros2 bag play <name_of_the_ros2_bag.db3>
 6. when the bag is finished playing stop the recording the the ros1 bag .bag should be in the dirctory you record in. 
 
 
+# Project map to 2D
+given the map and bag file processed and saved before, run the command below to filter map ground points and outliers. we will store:
 
+- rectification matrix in SE3
+- process map 
+- project LOAM to 2D
+- saveplots for PC map projection by LOAM sequences
+```
+python project_map.py --map_path /path-to-map.pcd --bag_path path-to-bag.bag --save_path path-to-save-materials
+```
