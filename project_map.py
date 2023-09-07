@@ -7,11 +7,16 @@ import numpy as np
 import open3d as o3d
 from pathlib import Path
 from scipy.spatial import cKDTree
+from bagpy import bagreader
+import pandas as pd
+from tqdm import tqdm
+import cv2
 
 parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter
 )
-parser.add_argument("--map_path", type=str, default='./map.pcd',help="path to saved map",)
+parser.add_argument("--map_path", type=str, help="path to saved map",)
+parser.add_argument("--bag_path", type=str, help="path to saved bag",)
 parser.add_argument("--save_path", type=str, default='./assets/',help="path to save meta-data",)
 args = parser.parse_args()
 
@@ -36,22 +41,9 @@ def T_rect_check(solution):
 
 def run_FGraph(x):
     
-    # if not T_rect_check(x):
-    #     print('T_rect checked.')
-    #     x = -1 * x
-    
-    # How to align a vector with gravity, ensuring that only the rotation is changed
-    # For this we need two factors, one looking at the rotation and the second looking at the pose to remain at the origin.
-
-    # Current vector, i
-    # x = np.random.randn(3) # Inpout max vector from PCA
     x = x / np.linalg.norm(x)
+    y = np.array([0., 0., 1.])
 
-    # Desired vector, in this case Z axis
-    y = np.zeros(3)
-    y[2] = 1
-
-    # Solve for one point, it is rank defincient, but the solution should be the geodesic (shortest) path
     graph = mrob.FGraph()
     W = np.eye(3)
     n1 = graph.add_node_pose_3d(mrob.geometry.SE3())
@@ -59,7 +51,6 @@ def run_FGraph(x):
         z_point_x=x, z_point_y=y, nodePoseId=n1, obsInf=W
     )
 
-    # Add anchor factor for position
     W_0 = np.identity(6) * 1e6
     W_0[:3, :3] = np.identity(3) * 1e-4
     graph.add_factor_1pose_3d(mrob.geometry.SE3(), n1, W_0)
@@ -114,9 +105,15 @@ def plot_map_pose(X, Y, init_pose, dT):
     plt.axis('equal')
     plt.show()
     
+def quat_to_SE3(quat_pose):
     
+    rot_4x1 = quat_pose[-4:]
+    tra_3x1 = quat_pose[:3]
+    rot = mrob.geometry.quat_to_so3(rot_4x1)
+    pose = mrob.geometry.SE3(mrob.geometry.SO3(rot),tra_3x1)
+    return pose
 
-def pcd_3D_to_2d(map_pcd):
+def pcd_3D_to_2d_hat(map_pcd):
     pcd = copy.deepcopy(map_pcd)
     pcd_points = np.asarray(pcd.points)
     twod_points = np.zeros_like(pcd_points)
@@ -127,24 +124,18 @@ def pcd_3D_to_2d(map_pcd):
 
 def filter_point_cloud(pcd, threshold, K, color):
     
-    pcd_2d = pcd_3D_to_2d(pcd)
+    pcd_2d = pcd_3D_to_2d_hat(pcd)
     point_cloud = np.asarray(pcd_2d.points)
     
-    # Build a kd-tree from the point cloud data
     kdtree = cKDTree(point_cloud)
 
-    # List to store points with more than K neighbors
     idxs = []
 
-    # Iterate through all points
     for idx, point in enumerate(point_cloud):
-        # Query the kd-tree for neighbors within distance d
         neighbors = kdtree.query_ball_point(point, threshold)
 
-        # Count the number of neighbors
         num_neighbors = len(neighbors)
 
-        # Check if the point has more than K neighbors
         if num_neighbors > K:
             idxs.append(idx)
             
@@ -156,6 +147,27 @@ def filter_point_cloud(pcd, threshold, K, color):
 
     return pcd_filtered, pcd_2d
 
+def read_domData(path_2_odom, dT):
+    
+
+    odom_poses = pd.read_csv(path_2_odom)[
+                                    [
+                                    'pose.pose.position.x',
+                                    'pose.pose.position.y',
+                                    'pose.pose.position.z',
+                                    'pose.pose.orientation.x',
+                                    'pose.pose.orientation.y',
+                                    'pose.pose.orientation.z',
+                                    'pose.pose.orientation.w',
+                                    ]
+                                    ]
+    odom_poses = np.asarray(odom_poses)
+
+    SE3 = np.zeros((odom_poses.shape[0],4,4))
+    for i in range(len(odom_poses)):
+        SE3[i,:,:] = (quat_to_SE3(odom_poses[i,:])).T() @ dT
+        
+    return SE3
 
 def rectify_map(map_pcd):
         
@@ -175,7 +187,8 @@ def rectify_map(map_pcd):
     
     
 def project_map(args):
-    os.makedirs(args.save_path, exist_ok=True)
+    
+    
     #read saved map from LOAM
     print('read map.pcd ...')
     map_pcd = o3d.io.read_point_cloud(args.map_path)
@@ -190,8 +203,13 @@ def project_map(args):
     cl, ind = map_pcd_2d.remove_statistical_outlier(nb_neighbors=40, std_ratio=0.5)
     map_pcd_2d = map_pcd_2d.select_by_index(ind)
     
+    # will be used to plot scatter map
+    _2d_map = np.asarray(map_pcd_2d.points)[:, :2]
+    np.save(os.path.join(Path(args.save_path), "map_rect_2d"), _2d_map)
+    
+    # can be used for 3d visualization 
     o3d.io.write_point_cloud(os.path.join(Path(args.save_path), "map_rect.pcd"), map_pcd_filtered)
-    o3d.io.write_point_cloud(os.path.join(Path(args.save_path), "map_rect_2d.pcd"), map_pcd_2d)
+    
     
     T_coord = np.array([
         [0, 1, 0, 0],
@@ -202,9 +220,102 @@ def project_map(args):
     dT = T_coord @ dT
     print('saving rectification matrix ...')
     np.save(Path(args.save_path) / 'dT.npy', dT)
+    
+def save_figs(dT, poses, save_path):
+    
+    fig, ax = plt.subplots(figsize=(12,12))
+    plt.rcParams.update({'font.size': 22})
 
-    # print('saving map.png ...')
-    # plt.imsave(Path(args.save_path) / "map.png", image)
+    plt.axis('equal')
+    
+    X, Y = np.load(os.path.join(Path(args.save_path), 'map_rect_2d.npy')).T
+    
+    dT = mrob.geometry.SE3(dT)
+    for idx, t in enumerate(tqdm(poses)):
+        idx_str = f'{idx:04}'
+        save_dir = Path(save_path)
+        save_dir.mkdir(parents=True, exist_ok=True)
+        
+          
+        pose = mrob.geometry.SE3(t)
+        x, y, dx, dy = pose2D(pose)
+    
+        ax.scatter(X, Y, marker='.', s=1)
+        ax.arrow(
+            x, y, dx, dy,
+            width=0.1,
+            alpha=1,
+            color="red",
+            head_width=3,
+            head_length=math.sqrt((dx*5) ** 2 + (dy*5) ** 2),
+            length_includes_head=True,
+            head_starts_at_zero=False,
+            )
+        
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_title('Akula Recording Sequence')
+        filename = os.path.join(save_dir, f'{idx_str}.png')
+        fig.savefig(filename, format='png')
+
+        ax.clear()
+
+
+def create_video_from_pngs(png_folder, output_video_filename, frame_rate):
+    # Get a list of all PNG files in the folder
+    png_files = [f for f in os.listdir(png_folder) if f.endswith('.png')]
+    
+    if not png_files:
+        print("No PNG files found in the folder.")
+        return
+    
+    # Sort the PNG files by filename
+    png_files.sort()
+    
+    # Read the first PNG file to get dimensions
+    first_frame = cv2.imread(os.path.join(png_folder, png_files[0]))
+    height, width, layers = first_frame.shape
+    
+    # Define the codec for the video (e.g., XVID)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    
+    # Create a VideoWriter object
+    out = cv2.VideoWriter(output_video_filename, fourcc, frame_rate, (width, height))
+    
+    # Write each PNG frame to the video
+    for png_file in png_files:
+        frame = cv2.imread(os.path.join(png_folder, png_file))
+        out.write(frame)
+    
+    # Release the VideoWriter
+    out.release()
+    print(f"Video saved as {output_video_filename}")
 
 if __name__ == '__main__':
+    
+    os.makedirs(args.save_path, exist_ok=True)
+    
+    #save odom data
+    b = bagreader(args.bag_path)  
+    topic = b.message_by_topic('/aft_mapped_to_init')
+    odom = pd.read_csv(topic)
+    odom.to_csv(os.path.join(Path(args.save_path), "odom.csv"))  
+    
     project_map(args)
+    
+    dT = np.load(Path(args.save_path) / 'dT.npy')
+    
+    SE3 = read_domData(os.path.join(Path(args.save_path), "odom.csv"), dT)
+    
+    plots_dir = os.path.join(Path(args.save_path), "plots")
+    print('saving plots ...')
+    save_figs(dT, list(SE3[::5]), plots_dir)
+    
+    
+    # make video from plots
+    output_video_filename = os.path.join(Path(args.save_path), "output_video.mp4")  # Specify the output video filename
+    frame_rate = 10  # Set the frame rate for the video
+    print('creating video ...')
+    create_video_from_pngs(plots_dir, output_video_filename, frame_rate)
+
+    
