@@ -96,7 +96,7 @@ given the map and bag file processed and saved before, run the command below to 
 - rectification matrix in SE3
 - process map 
 - project LOAM to 2D
-- saveplots for PC map projection by LOAM sequences
+- save plots for PC map projection by LOAM sequences
 ```
 python project_map.py --map_path /path-to-map.pcd --bag_path path-to-bag.bag --save_path path-to-save-materials
 ```
