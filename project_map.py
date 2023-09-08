@@ -186,13 +186,12 @@ def rectify_map(map_pcd):
     return dT, map_rect
     
     
-def project_map(args):
+def project_map(args, map_pcd = o3d.io.read_point_cloud(args.map_path)):
     
     
     #read saved map from LOAM
-    print('read map.pcd ...')
-    map_pcd = o3d.io.read_point_cloud(args.map_path)
-    
+    print('read map.pcd from LOAM...')
+   
     #rectify map
     print('rectify map ...')
     dT, map_pcd = rectify_map(map_pcd)
