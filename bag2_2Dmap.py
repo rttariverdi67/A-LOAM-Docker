@@ -120,7 +120,7 @@ if __name__ == '__main__':
     
     # save localization sequance
     dT = np.load(Path(args.save_path) / 'dT.npy')
-    poses = np.load(Path(args.poses) / 'localization_solution.npy')
+    poses = np.load(Path(args.poses) / 'odom.npy')
     plots_dir = os.path.join(Path(args.save_path), "plots")
     save_figs(dT, poses, plots_dir)
     
