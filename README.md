@@ -90,7 +90,7 @@ ros2 bag play <name_of_the_ros2_bag.db3>
 6. when the bag is finished playing stop the recording the the ros1 bag .bag should be in the dirctory you record in. 
 
 
-# Project map to 2D
+# Plot map in 2D with LOAM odometry
 given the map and bag file processed and saved before, run the command below to filter map ground points and outliers. we will store:
 
 - rectification matrix in SE3
@@ -99,4 +99,19 @@ given the map and bag file processed and saved before, run the command below to 
 - save plots for PC map projection by LOAM sequences
 ```
 python project_map.py --map_path /path-to-map.pcd --bag_path path-to-bag.bag --save_path path-to-save-materials
+```
+
+
+# Plot map in 2D with Localization odometry
+<img src="figure/0000.png"  width="300" height="300">
+
+
+given the map and odom file from localization, run the command below to plot solution and map in 2D. we will store:
+
+- rectification matrix in SE3
+- process map 
+- project localization to 2D
+- save plots for PC map projection by localization sequences
+```
+python bag2_2Dmap.py --map_path /path-to-map.pcd --poses path-to-odom.csv --save_path path-to-save-materials
 ```
