@@ -12,13 +12,6 @@ import pandas as pd
 from tqdm import tqdm
 import cv2
 
-parser = argparse.ArgumentParser(
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter
-)
-parser.add_argument("--map_path", type=str, help="path to saved map",)
-parser.add_argument("--bag_path", type=str, help="path to saved bag",)
-parser.add_argument("--save_path", type=str, default='./assets/',help="path to save meta-data",)
-args = parser.parse_args()
 
 
 
@@ -165,7 +158,7 @@ def read_domData(path_2_odom, dT):
 
     SE3 = np.zeros((odom_poses.shape[0],4,4))
     for i in range(len(odom_poses)):
-        SE3[i,:,:] = (quat_to_SE3(odom_poses[i,:])).T() @ dT
+        SE3[i,:,:] = (quat_to_SE3(odom_poses[i,:])).T()
         
     return SE3
 
@@ -186,7 +179,7 @@ def rectify_map(map_pcd):
     return dT, map_rect
     
     
-def project_map(args, map_pcd = o3d.io.read_point_cloud(args.map_path)):
+def project_map(args, map_pcd):
     
     
     #read saved map from LOAM
@@ -220,7 +213,7 @@ def project_map(args, map_pcd = o3d.io.read_point_cloud(args.map_path)):
     print('saving rectification matrix ...')
     np.save(Path(args.save_path) / 'dT.npy', dT)
     
-def save_figs(dT, poses, save_path):
+def save_figs(args, poses, plot_path):
     
     fig, ax = plt.subplots(figsize=(12,12))
     plt.rcParams.update({'font.size': 22})
@@ -228,15 +221,15 @@ def save_figs(dT, poses, save_path):
     plt.axis('equal')
     
     X, Y = np.load(os.path.join(Path(args.save_path), 'map_rect_2d.npy')).T
-    
-    dT = mrob.geometry.SE3(dT)
+    dT_array = np.load(os.path.join(Path(args.save_path), 'dT.npy'))
+    # dT = mrob.geometry.SE3(dT_array)
     for idx, t in enumerate(tqdm(poses)):
         idx_str = f'{idx:04}'
-        save_dir = Path(save_path)
+        save_dir = Path(plot_path)
         save_dir.mkdir(parents=True, exist_ok=True)
         
-          
-        pose = mrob.geometry.SE3(t)
+        # print(t.shape, dT.shape)  
+        pose = mrob.geometry.SE3(t @ dT_array) 
         x, y, dx, dy = pose2D(pose)
     
         ax.scatter(X, Y, marker='.', s=1)
@@ -292,6 +285,15 @@ def create_video_from_pngs(png_folder, output_video_filename, frame_rate):
 
 if __name__ == '__main__':
     
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument("--map_path", type=str, help="path to saved map.pcd",)
+    parser.add_argument("--bag_path", type=str, help="path to saved .bag",)
+    parser.add_argument("--save_path", type=str, default='./assets/',help="path to save meta-data",)
+    args = parser.parse_args()
+
+
     os.makedirs(args.save_path, exist_ok=True)
     
     #save odom data
@@ -300,7 +302,7 @@ if __name__ == '__main__':
     odom = pd.read_csv(topic)
     odom.to_csv(os.path.join(Path(args.save_path), "odom.csv"))  
     
-    project_map(args)
+    project_map(args, o3d.io.read_point_cloud(args.map_path))
     
     dT = np.load(Path(args.save_path) / 'dT.npy')
     
@@ -308,7 +310,7 @@ if __name__ == '__main__':
     
     plots_dir = os.path.join(Path(args.save_path), "plots")
     print('saving plots ...')
-    save_figs(dT, list(SE3[::5]), plots_dir)
+    save_figs(args, list(SE3[::5]), plots_dir)
     
     
     # make video from plots
