@@ -59,39 +59,6 @@ rosbags-convert <dir-to-ros2-bag>
 # Example
 rosbags-convert data_folder 
 ``` 
-<<<<<<< HEAD
-=======
-3. In shell **B**: 
-```shell
-# Source ROS 1:
-source /opt/ros/noetic/setup.bash
-# Run ros core
-roscore
-```
-4. In shell **C**: 
-```shell
-# Source ROS 1:
-source /opt/ros/noetic/setup.bash
-# navigat to the directory you want the bag to be stored in
-cd <path>
-# record all topics with 
-rosbag record -a 
-# or record a certain topic or topics with 
-rosbag record <topic1_name> <topic2_name> <topic3_name>
-```
-5. In shell **D**: 
-```shell
-# Source ROS 2:
-source /opt/ros/foxy/setup.bash
-# Run the ros2 bag .db3
-ros2 bag play <name_of_the_ros2_bag.db3>
-```
-6. when the bag is finished playing stop the recording the the ros1 bag .bag should be in the dirctory you record in. 
-
-
-# Plot map in 2D with LOAM odometry
-given the map and bag file processed and saved before, run the command below to filter map ground points and outliers. we will store:
->>>>>>> 110e0d18c4276c60910b8453e147d886403ad358
 
 - rectification matrix in SE3
 - process map 
