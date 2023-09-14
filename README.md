@@ -36,58 +36,27 @@ rosbag record /aft_mapped_to_init /laser_cloud_map /velodyne_cloud_registered
 ### Getting trajectory
 Per frame trjaectory is available in `/aft_mapped_to_init` topic.
 
-# LOAM preprocessing 
-
-Using ROS-bridge for transfering ros2 bags into ros1 bags: 
-for thisyou need to have ROS1 and ROS2 installed on your local or a docker with ros bridg installed. 
-To install ros bridg: 
-```shell
-sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
-sudo apt-key adv --keyserver 'hkp://keyserver.ubuntu.com:80' --recv-key C1CF6E31E6BADE8868B172B4F42ED6FBAB17C654
-sudo apt update
-# if you have diffrent version of ros2 repace "foxy" with it
-sudo apt install ros-foxy-ros1-bridge 
+# Coverting from ros2 to ros1:
+### Using rosbags python lib
+to install it: 
+```bash
+pip install rosbags
 ```
-#### Transfer .db3 to .bag
-**Steps:** 
-1. Open 4 shells (A, B, C, and D). 
-2. In shell **A**:
-```shell
-# Source ROS 1 first:
-source /opt/ros/noetic/setup.bash 
-# Source ROS 2 next:
-source /opt/ros/foxy/setup.bash
-# export ros master 
-export ROS_MASTER_URI=http://localhost:11311
-# Run ros-bridg
-ros2 run ros1_bridge dynamic_bridge
+and then use 
+```bash
+rosbags-convert <dir-to-ros2-bag> --include-topic <topic_one --include-topic <topic_two> 
+#example 
+rosbags-convert data_folder --include-topic /velodyne_points --include-topic /imu
+```
+#### This only works for [supported messages](https://ternaris.gitlab.io/rosbags/topics/typesys.html#included-message-types)
+in our case pointclods and IMUs are supoorted
+
+### Addtional Method:  
+**[The notebook](bag2pcd.ipynb)** is now updated with method to save selected topics from a ROS2 bag. 
+you can use is to save sub ros2bag and then use rosbags python lib 
+```bash 
+rosbags-convert <dir-to-ros2-bag>
+# Example
+rosbags-convert data_folder 
 ``` 
-3. In shell **B**: 
-```shell
-# Source ROS 1:
-source /opt/ros/noetic/setup.bash
-# Run ros core
-roscore
-```
-4. In shell **C**: 
-```shell
-# Source ROS 1:
-source /opt/ros/noetic/setup.bash
-# navigat to the directory you want the bag to be stored in
-cd <path>
-# record all topics with 
-rosbag record -a 
-# or record a certain topic or topics with 
-rosbag record <topic1_name> <topic2_name> <topic3_name>
-```
-5. In shell **D**: 
-```shell
-# Source ROS 2:
-source /opt/ros/foxy/setup.bash
-# Run the ros2 bag .db3
-ros2 bag play <name_of_the_ros2_bag.db3>
-```
-6. when the bag is finished playing stop the recording the the ros1 bag .bag should be in the dirctory you record in. 
-
-
 
