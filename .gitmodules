@@ -1,3 +1,3 @@
-[submodule "AprilTag"]
-	path = AprilTag
+[submodule "https:/github.com/rttariverdi67/AprilTag"]
+	path = https:/github.com/rttariverdi67/AprilTag
 	url = https://github.com/Tinker-Twins/AprilTag
