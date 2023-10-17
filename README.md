@@ -82,3 +82,14 @@ given the map and odom file from localization, run the command below to plot sol
 ```
 python bag2_2Dmap.py --map_path /path-to-map.pcd --poses path-to-odom.csv --save_path path-to-save-materials
 ```
+
+# Tags to GNSS transformation
+```
+python gnss/tag2gnss.py --map_3d /path-to-map.pcd --tags_num number-of-used-tags --gnss_coords /path-to-stored-tags-GNSS```
+
+NOTE, keep the order while clicking on tags position on the map with the order of GNSS coordinates.
+
+use right click to choose points on the map.
+
+
+
